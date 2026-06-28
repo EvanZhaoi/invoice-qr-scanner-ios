@@ -31,5 +31,9 @@ final class InvoiceScannerViewModel: ObservableObject {
             isShowingErrorAlert = true
         }
     }
-}
 
+    func showScannerError(_ message: String) {
+        errorMessage = message
+        isShowingErrorAlert = true
+    }
+}
