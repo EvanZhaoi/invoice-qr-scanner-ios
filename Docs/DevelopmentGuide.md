@@ -6,7 +6,7 @@
 
 开发一个 iOS App：
 
-1. 用户点击“开始扫描”。
+1. 用户点击底部扫码按钮。
 2. App 打开摄像头扫描发票二维码。
 3. 扫描成功后，取到二维码字符串。
 4. 将二维码字符串作为参数发送给 API。
@@ -21,15 +21,9 @@
 
 用于构建界面。优点是代码量少、状态驱动 UI，适合本作业的扫码、提交、弹窗展示流程。
 
-### 2.2 CodeScanner
+### 2.2 AVFoundation
 
-CodeScanner 是开源 SwiftUI 扫码组件，提供 `CodeScannerView`。本项目用它完成二维码扫描，避免手写 AVFoundation 摄像头采集和二维码识别逻辑。
-
-依赖地址：
-
-```text
-https://github.com/twostraws/CodeScanner
-```
+项目使用 iOS 原生 `AVCaptureSession`、`AVCaptureMetadataOutput` 和 `AVCaptureVideoPreviewLayer` 完成二维码扫描。这样真机测试时依赖更少，也更容易定位摄像头权限或设备问题。
 
 ### 2.3 XcodeGen
 
@@ -99,9 +93,8 @@ InvoiceQRScanner/Features/Home/ContentView.swift
 
 作用：
 
-- 展示首页 UI。
-- 点击“开始扫描”打开扫码 sheet。
-- 点击“使用 mock 二维码测试”直接走提交流程。
+- 展示极简首页 UI。
+- 点击底部蓝色圆形扫码按钮打开扫码 sheet。
 - 监听 ViewModel 状态并展示成功/失败弹窗。
 
 关键状态：
@@ -121,17 +114,17 @@ InvoiceQRScanner/Features/Scanner/ScannerSheet.swift
 
 作用：
 
-- 包装 CodeScanner 的 `CodeScannerView`。
+- 包装原生 `AVCaptureSession` 扫码能力。
 - 只扫描二维码：
 
   ```swift
-  codeTypes: [.qr]
+  output.metadataObjectTypes = [.qr]
   ```
 
 - 扫描一次后回调二维码字符串：
 
   ```swift
-  onResult(scanResult.string)
+  onResult(code)
   ```
 
 ### 5.4 ViewModel
@@ -315,4 +308,3 @@ git push
 - 增加发票图片 OCR。
 - 增加网络错误重试。
 - 增加单元测试和 UI 测试。
-

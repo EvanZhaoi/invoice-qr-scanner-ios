@@ -11,9 +11,8 @@
 - 使用 mock API 模拟“二维码内容作为参数发送给接口”
 - 弹窗展示接口返回值
 - 支持 Simulator mock 扫码数据
-- 使用开源组件简化开发：
-  - [CodeScanner](https://github.com/twostraws/CodeScanner)：SwiftUI 二维码/条码扫描组件
-  - [XcodeGen](https://github.com/yonaskolb/XcodeGen)：根据 `project.yml` 生成 Xcode 工程
+- 使用原生 AVFoundation 完成二维码扫描，减少真机依赖问题
+- 使用 [XcodeGen](https://github.com/yonaskolb/XcodeGen) 根据 `project.yml` 生成 Xcode 工程
 
 ## 快速运行
 
@@ -69,4 +68,3 @@ project.yml
 修改 [InvoiceAPIClient.swift](InvoiceQRScanner/Services/InvoiceAPIClient.swift)，将 `MockInvoiceAPIClient` 替换为 `URLSessionInvoiceAPIClient`，并在 `InvoiceScannerViewModel` 初始化时注入真实实现。
 
 详细步骤见 [开发文档](Docs/DevelopmentGuide.md)。
-

@@ -1,5 +1,4 @@
 import AVFoundation
-import CodeScanner
 import SwiftUI
 import UIKit
 
@@ -14,182 +13,124 @@ struct ScannerSheet: View {
 
     var body: some View {
         NavigationStack {
-            ZStack {
-                Color.black.ignoresSafeArea()
-
+            Group {
                 switch cameraStatus {
                 case .authorized:
-                    scanner
+                    scannerView
                 case .notDetermined:
-                    permissionRequestView
+                    permissionView
                 case .denied, .restricted:
-                    unavailableCameraView(
-                        title: "无法使用摄像头",
-                        message: "请在系统设置中允许本 App 使用摄像头，或先使用 mock 数据完成测试。"
-                    )
+                    cameraUnavailableView
                 @unknown default:
-                    unavailableCameraView(
-                        title: "摄像头状态异常",
-                        message: "当前设备返回了未知权限状态，请使用 mock 数据或手动输入二维码内容。"
-                    )
+                    cameraUnavailableView
                 }
             }
-            .navigationTitle("扫描发票二维码")
+            .navigationTitle("扫描二维码")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbarColorScheme(.dark, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button("关闭") {
+                    Button("取消") {
                         onCancel()
                     }
-                    .foregroundStyle(.white)
                 }
             }
             .task {
-                await refreshCameraPermissionIfNeeded()
+                await refreshCameraPermission()
             }
         }
     }
 
-    private var scanner: some View {
+    private var scannerView: some View {
         ZStack {
-            CodeScannerView(
-                codeTypes: [.qr],
-                scanMode: .once,
-                showViewfinder: false,
-                simulatedData: simulatedData,
-                shouldVibrateOnSuccess: true
-            ) { result in
-                switch result {
-                case .success(let scanResult):
-                    let value = scanResult.string.trimmingCharacters(in: .whitespacesAndNewlines)
+            NativeQRCodeScannerView(
+                onCodeScanned: { code in
+                    let value = code.trimmingCharacters(in: .whitespacesAndNewlines)
                     if value.isEmpty {
                         onFailure("扫描到的二维码内容为空，请重新扫描。")
                     } else {
                         onResult(value)
                     }
-                case .failure(let error):
-                    onFailure("扫码组件返回错误：\(String(describing: error))。可以检查摄像头权限，或使用 mock 数据测试。")
-                }
-            }
+                },
+                onFailure: onFailure
+            )
             .ignoresSafeArea()
 
-            scannerOverlay
-        }
-    }
+            VStack {
+                Spacer()
 
-    private var scannerOverlay: some View {
-        VStack(spacing: 0) {
-            Text("将发票二维码放入取景框")
-                .font(.headline)
-                .foregroundStyle(.white)
-                .padding(.top, 18)
+                RoundedRectangle(cornerRadius: 18)
+                    .stroke(.white, lineWidth: 3)
+                    .frame(width: 250, height: 250)
+                    .overlay {
+                        Text("对准发票二维码")
+                            .font(.callout)
+                            .foregroundStyle(.white)
+                            .padding(.top, 286)
+                    }
 
-            Spacer()
+                Spacer()
 
-            ZStack {
-                RoundedRectangle(cornerRadius: 34, style: .continuous)
-                    .stroke(.white.opacity(0.88), lineWidth: 3)
-                    .frame(width: 270, height: 270)
-
-                RoundedRectangle(cornerRadius: 34, style: .continuous)
-                    .stroke(Color.green.opacity(0.55), lineWidth: 10)
-                    .frame(width: 270, height: 270)
-                    .blur(radius: 16)
-
-                Image(systemName: "qrcode")
-                    .font(.system(size: 72, weight: .regular))
-                    .foregroundStyle(.white.opacity(0.16))
-            }
-
-            Spacer()
-
-            VStack(spacing: 12) {
                 Button {
                     onResult(simulatedData)
                 } label: {
-                    Label("使用 mock 数据", systemImage: "wand.and.stars")
-                        .font(.headline)
+                    Text("使用 mock 数据测试")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 15)
+                        .padding(.vertical, 14)
+                        .background(Color.black.opacity(0.55))
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
-                .buttonStyle(.plain)
-                .foregroundStyle(.black.opacity(0.86))
-                .background(Color.green)
-                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-
-                Text("如果是真机测试，请确认系统已授权摄像头。Simulator 建议直接用 mock 数据。")
-                    .font(.caption)
-                    .multilineTextAlignment(.center)
-                    .foregroundStyle(.white.opacity(0.72))
+                .padding(.horizontal, 24)
+                .padding(.bottom, 24)
             }
-            .padding(20)
-            .background(.black.opacity(0.42))
         }
+        .background(Color.black)
     }
 
-    private var permissionRequestView: some View {
+    private var permissionView: some View {
         VStack(spacing: 20) {
-            Image(systemName: "camera.fill")
-                .font(.system(size: 56, weight: .semibold))
-                .foregroundStyle(.white)
+            Image(systemName: "camera")
+                .font(.system(size: 48))
+                .foregroundStyle(.blue)
 
             Text("需要摄像头权限")
-                .font(.title2.weight(.bold))
-                .foregroundStyle(.white)
+                .font(.title3.bold())
 
-            Text("点击下方按钮授权后，即可扫描发票二维码。")
+            Text("授权后才能扫描发票二维码。")
                 .font(.body)
-                .multilineTextAlignment(.center)
-                .foregroundStyle(.white.opacity(0.72))
+                .foregroundStyle(.secondary)
 
-            Button {
+            Button("授权摄像头") {
                 Task {
                     await requestCameraPermission()
                 }
-            } label: {
-                Text("授权摄像头")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 15)
             }
-            .buttonStyle(.plain)
-            .foregroundStyle(.black.opacity(0.86))
-            .background(Color.green)
-            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .buttonStyle(.borderedProminent)
 
             fallbackControls
         }
         .padding(24)
     }
 
-    private func unavailableCameraView(title: String, message: String) -> some View {
+    private var cameraUnavailableView: some View {
         VStack(spacing: 18) {
             Image(systemName: "camera.badge.ellipsis")
-                .font(.system(size: 54, weight: .semibold))
-                .foregroundStyle(.white)
+                .font(.system(size: 48))
+                .foregroundStyle(.blue)
 
-            Text(title)
-                .font(.title2.weight(.bold))
-                .foregroundStyle(.white)
+            Text("摄像头不可用")
+                .font(.title3.bold())
 
-            Text(message)
+            Text("请在系统设置中允许本 App 使用摄像头，或者先使用 mock 数据测试。")
                 .font(.body)
+                .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
-                .foregroundStyle(.white.opacity(0.72))
 
-            Button {
+            Button("打开系统设置") {
                 openAppSettings()
-            } label: {
-                Label("打开系统设置", systemImage: "gearshape.fill")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 15)
             }
-            .buttonStyle(.plain)
-            .foregroundStyle(.black.opacity(0.86))
-            .background(Color.green)
-            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .buttonStyle(.borderedProminent)
 
             fallbackControls
         }
@@ -198,50 +139,31 @@ struct ScannerSheet: View {
 
     private var fallbackControls: some View {
         VStack(spacing: 12) {
-            Button {
+            Button("使用 mock 数据测试") {
                 onResult(simulatedData)
-            } label: {
-                Label("使用 mock 数据测试", systemImage: "wand.and.stars")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 15)
             }
-            .buttonStyle(.plain)
-            .foregroundStyle(.white)
-            .background(.white.opacity(0.16))
-            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .buttonStyle(.bordered)
 
             TextField("手动粘贴二维码内容", text: $manualQRCode)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
-                .padding(14)
-                .background(.white)
-                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .textFieldStyle(.roundedBorder)
 
-            Button {
+            Button("提交手动内容") {
                 let value = manualQRCode.trimmingCharacters(in: .whitespacesAndNewlines)
                 if value.isEmpty {
                     onFailure("手动输入的二维码内容为空。")
                 } else {
                     onResult(value)
                 }
-            } label: {
-                Text("提交手动输入内容")
-                    .fontWeight(.semibold)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
             }
-            .buttonStyle(.plain)
-            .foregroundStyle(.black.opacity(0.86))
-            .background(Color.green.opacity(manualQRCode.isEmpty ? 0.42 : 1))
-            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-            .disabled(manualQRCode.isEmpty)
+            .disabled(manualQRCode.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         }
-        .padding(.top, 8)
+        .padding(.top, 10)
     }
 
     @MainActor
-    private func refreshCameraPermissionIfNeeded() async {
+    private func refreshCameraPermission() async {
         cameraStatus = AVCaptureDevice.authorizationStatus(for: .video)
         if cameraStatus == .notDetermined {
             await requestCameraPermission()
@@ -262,7 +184,102 @@ struct ScannerSheet: View {
         guard let settingsURL = URL(string: UIApplication.openSettingsURLString) else {
             return
         }
-
         UIApplication.shared.open(settingsURL)
+    }
+}
+
+private struct NativeQRCodeScannerView: UIViewRepresentable {
+    let onCodeScanned: (String) -> Void
+    let onFailure: (String) -> Void
+
+    func makeUIView(context: Context) -> ScannerPreviewView {
+        let view = ScannerPreviewView()
+        context.coordinator.configureSession(for: view)
+        return view
+    }
+
+    func updateUIView(_ uiView: ScannerPreviewView, context: Context) { }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(onCodeScanned: onCodeScanned, onFailure: onFailure)
+    }
+
+    final class Coordinator: NSObject, AVCaptureMetadataOutputObjectsDelegate {
+        private let session = AVCaptureSession()
+        private let onCodeScanned: (String) -> Void
+        private let onFailure: (String) -> Void
+        private var didScanCode = false
+
+        init(
+            onCodeScanned: @escaping (String) -> Void,
+            onFailure: @escaping (String) -> Void
+        ) {
+            self.onCodeScanned = onCodeScanned
+            self.onFailure = onFailure
+        }
+
+        func configureSession(for view: ScannerPreviewView) {
+            guard let captureDevice = AVCaptureDevice.default(for: .video) else {
+                onFailure("当前设备没有可用摄像头。")
+                return
+            }
+
+            do {
+                let input = try AVCaptureDeviceInput(device: captureDevice)
+                let output = AVCaptureMetadataOutput()
+
+                guard session.canAddInput(input), session.canAddOutput(output) else {
+                    onFailure("无法初始化扫码会话。")
+                    return
+                }
+
+                session.addInput(input)
+                session.addOutput(output)
+
+                output.setMetadataObjectsDelegate(self, queue: DispatchQueue.main)
+                output.metadataObjectTypes = [.qr]
+
+                view.videoPreviewLayer.session = session
+                view.videoPreviewLayer.videoGravity = .resizeAspectFill
+
+                DispatchQueue.global(qos: .userInitiated).async { [session] in
+                    session.startRunning()
+                }
+            } catch {
+                onFailure("无法启动摄像头：\(error.localizedDescription)")
+            }
+        }
+
+        func metadataOutput(
+            _ output: AVCaptureMetadataOutput,
+            didOutput metadataObjects: [AVMetadataObject],
+            from connection: AVCaptureConnection
+        ) {
+            guard didScanCode == false else {
+                return
+            }
+
+            guard
+                let metadataObject = metadataObjects.first as? AVMetadataMachineReadableCodeObject,
+                metadataObject.type == .qr,
+                let code = metadataObject.stringValue
+            else {
+                return
+            }
+
+            didScanCode = true
+            session.stopRunning()
+            onCodeScanned(code)
+        }
+    }
+}
+
+private final class ScannerPreviewView: UIView {
+    override class var layerClass: AnyClass {
+        AVCaptureVideoPreviewLayer.self
+    }
+
+    var videoPreviewLayer: AVCaptureVideoPreviewLayer {
+        layer as! AVCaptureVideoPreviewLayer
     }
 }
